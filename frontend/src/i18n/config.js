@@ -10,7 +10,7 @@ i18n
       bn: { translation: bn },
       en: { translation: en },
     },
-    lng: 'bn', // default language
+    lng: localStorage.getItem('i18nextLng') || 'bn', // check storage or default to bn
     fallbackLng: 'bn',
     interpolation: {
       escapeValue: false,

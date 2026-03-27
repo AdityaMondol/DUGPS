@@ -13,10 +13,69 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import ProtectedRoute from './components/ProtectedRoute'
+import LanguageTransition from './components/LanguageTransition'
+
+import { useEffect } from 'react'
+import { supabase } from './lib/supabase'
+import useAuthStore from './store/authStore'
 
 function App() {
+  const { setAuth, logout } = useAuthStore()
+
+  useEffect(() => {
+    // 1. Initial Session Check
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+        
+        if (profile) {
+          setAuth({
+            id: session.user.id,
+            email: session.user.email,
+            firstName: profile.first_name,
+            lastName: profile.last_name,
+            role: profile.role
+          }, session.access_token)
+        }
+      }
+    }
+
+    checkSession()
+
+    // 2. Auth state change listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+
+        if (profile) {
+          setAuth({
+            id: session.user.id,
+            email: session.user.email,
+            firstName: profile.first_name,
+            lastName: profile.last_name,
+            role: profile.role
+          }, session.access_token)
+        }
+      } else if (event === 'SIGNED_OUT') {
+        logout()
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [setAuth, logout])
+
   return (
     <Router>
+      <LanguageTransition />
       <div className="min-h-screen flex flex-col">
         <Navbar />
         <main className="flex-grow">

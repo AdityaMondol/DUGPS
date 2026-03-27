@@ -56,7 +56,15 @@
     "assistantTeacher": "Assistant Teacher",
     "phone": "Phone",
     "email": "Email",
-    "qualification": "Qualification"
+    "qualification": "Qualification",
+    "teacher1": "Asrin Siddiqui",
+    "teacher2": "Munmun Akter",
+    "teacher3": "Inara Begum",
+    "teacher4": "Salma Akter",
+    "teacher5": "Shilpi Rani Karmakar",
+    "teacher6": "Rasheda Ansari",
+    "teacher7": "Asma Akter",
+    "teacher8": "Sumaiya Nur Misouri"
   },
   "notice": {
     "title": "Notice Board",
@@ -146,7 +154,11 @@
     "fromTangailBus": "From Tangail Bus Station",
     "fromRailway": "From Railway Station",
     "hours": "hours",
-    "minutes": "minutes"
+    "minutes": "minutes",
+    "officeHours": "Office Hours",
+    "weekdays": "Sat - Wed",
+    "emergency": "Emergency Contact",
+    "emergencyText": "For urgent administrative matters during off-hours, please contact the emergency number below."
   },
   "auth": {
     "login": "Login",

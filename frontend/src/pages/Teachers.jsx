@@ -6,22 +6,21 @@ const Teachers = () => {
   const { t } = useTranslation()
 
   const headTeacher = {
-    name: 'আসরিন সিদ্দিকী',
-    nameEn: 'Asrin Siddiqui',
+    name: t('teachers.teacher1'),
     designation: t('teachers.headTeacher'),
-    qualification: 'এম.এ, বি.এড',
-    phone: '+৮৮০-১৭১২-৩৪৫৬৭৮',
+    qualification: 'M.A, B.Ed',
+    phone: '+880-1712-345678',
     image: '/assets/images/teacher1.jpg',
   }
 
   const assistantTeachers = [
-    { name: 'মুনমুন আক্তার', nameEn: 'Munmun Akter', qualification: 'বি.এ, বি.এড', image: '/assets/images/Teacher2.jpg' },
-    { name: 'ইনারা বেগম', nameEn: 'Inara Begum', qualification: 'বি.এ, বি.এড', image: '/assets/images/teacher3.jpg' },
-    { name: 'সালমা আক্তার', nameEn: 'Salma Akter', qualification: 'বি.এ, বি.এড', image: '/assets/images/All.jpg' },
-    { name: 'শিল্পী রানী কর্মকার', nameEn: 'Shilpi Rani Karmakar', qualification: 'বি.এ, বি.এড', image: '/assets/images/shilpi.jpg' },
-    { name: 'রাশেদা আনসারী', nameEn: 'Rasheda Ansari', qualification: 'বি.এ, বি.এড', image: '/assets/images/and.jpg' },
-    { name: 'আসমা আক্তার', nameEn: 'Asma Akter', qualification: 'বি.এ, বি.এড', image: '/assets/images/two.jpg' },
-    { name: 'সুমাইয়া নূর মিসৌরি', nameEn: 'Sumaiya Nur Misouri', qualification: 'বি.এ, বি.এড', image: '/assets/images/Misury.jpg' },
+    { name: t('teachers.teacher2'), qualification: 'B.A, B.Ed', image: '/assets/images/Teacher2.jpg' },
+    { name: t('teachers.teacher3'), qualification: 'B.A, B.Ed', image: '/assets/images/teacher3.jpg' },
+    { name: t('teachers.teacher4'), qualification: 'B.A, B.Ed', image: '/assets/images/All.jpg' },
+    { name: t('teachers.teacher5'), qualification: 'B.A, B.Ed', image: '/assets/images/shilpi.jpg' },
+    { name: t('teachers.teacher6'), qualification: 'B.A, B.Ed', image: '/assets/images/and.jpg' },
+    { name: t('teachers.teacher7'), qualification: 'B.A, B.Ed', image: '/assets/images/two.jpg' },
+    { name: t('teachers.teacher8'), qualification: 'B.A, B.Ed', image: '/assets/images/Misury.jpg' },
   ]
 
   return (
@@ -34,7 +33,7 @@ const Teachers = () => {
           className="text-center mb-16"
         >
           <h1 className="section-title">{t('teachers.title')}</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
+          <p className="text-base text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             {t('teachers.subtitle')}
           </p>
         </motion.div>
@@ -46,8 +45,8 @@ const Teachers = () => {
           viewport={{ once: true }}
           className="mb-20"
         >
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
-            <Award className="w-8 h-8 text-primary-600" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+            <Award className="w-6 h-6 text-primary-600" />
             {t('teachers.headTeacher')}
           </h2>
           
@@ -66,10 +65,10 @@ const Teachers = () => {
               
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
                     {headTeacher.name}
                   </h3>
-                  <p className="text-lg text-primary-600 dark:text-accent-400 font-semibold mb-2">
+                  <p className="text-base text-primary-600 dark:text-accent-400 font-semibold mb-2">
                     {headTeacher.designation}
                   </p>
                   <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
@@ -93,8 +92,8 @@ const Teachers = () => {
 
         {/* Assistant Teachers */}
         <div>
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 flex items-center gap-3">
-            <Award className="w-8 h-8 text-accent-600" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-3">
+            <Award className="w-6 h-6 text-accent-600" />
             {t('teachers.assistantTeacher')}
           </h2>
           
@@ -119,15 +118,15 @@ const Teachers = () => {
                   <div className="absolute inset-0 bg-gradient-to-t from-accent-600/50 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 </div>
                 
-                <div className="text-center space-y-2">
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                <div className="text-center space-y-1">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                     {teacher.name}
                   </h3>
-                  <p className="text-sm text-accent-600 dark:text-accent-400 font-semibold">
+                  <p className="text-xs text-accent-600 dark:text-accent-400 font-semibold">
                     {t('teachers.assistantTeacher')}
                   </p>
-                  <div className="flex items-center justify-center gap-2 text-gray-600 dark:text-gray-400 text-sm">
-                    <Award className="w-4 h-4" />
+                  <div className="flex items-center justify-center gap-1.5 text-gray-600 dark:text-gray-400 text-xs">
+                    <Award className="w-3.5 h-3.5" />
                     <span>{teacher.qualification}</span>
                   </div>
                 </div>

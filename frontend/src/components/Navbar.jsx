@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import useAuthStore from '../store/authStore'
 import useThemeStore from '../store/themeStore'
 import toast from 'react-hot-toast'
+import { supabase } from '../lib/supabase'
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false)
@@ -19,12 +20,12 @@ const Navbar = () => {
   const toggleLanguage = () => {
     const newLang = i18n.language === 'bn' ? 'en' : 'bn'
     i18n.changeLanguage(newLang)
-    setTimeout(() => {
-      toast.success(t('languageChanged'))
-    }, 100)
+    localStorage.setItem('i18nextLng', newLang)
+    // The language transition is handled by the LanguageTransition component
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     logout()
     toast.success(t('nav.logout'))
     navigate('/')
@@ -43,18 +44,24 @@ const Navbar = () => {
   const isActive = (path) => location.pathname === path
 
   return (
-    <nav className="glass-effect sticky top-0 z-50 shadow-lg">
+    <nav className="glass-effect sticky top-0 z-50 shadow-sm border-b border-white/10 dark:border-slate-800/50">
       <div className="container-custom">
-        <div className="flex items-center justify-between h-20">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="bg-gradient-to-br from-primary-600 to-accent-600 p-2 rounded-xl group-hover:scale-110 transition-transform duration-300">
-              <GraduationCap className="w-8 h-8 text-white" />
+        <div className="flex items-center justify-between h-20 md:h-24">
+          {/* Logo Section */}
+          <Link to="/" className="flex items-center gap-4 group">
+            <div className="relative">
+              <div className="absolute -inset-2 bg-indigo-500/20 rounded-2xl blur-lg group-hover:bg-indigo-500/30 transition-all" />
+              <div className="relative bg-gradient-to-br from-indigo-600 to-indigo-700 p-2.5 rounded-2xl shadow-lg border border-white/20">
+                <GraduationCap className="w-8 h-8 text-white" />
+              </div>
             </div>
-            <div className="hidden md:block">
-              <h1 className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-accent-600">
-                {t('home.schoolName').substring(0, 20)}...
-              </h1>
+            <div className="flex flex-col">
+              <span className="text-lg font-black tracking-tight text-slate-900 dark:text-white leading-none">
+                Darul Ulum
+              </span>
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400 mt-1">
+                Modern Education
+              </span>
             </div>
           </Link>
 
@@ -64,79 +71,83 @@ const Navbar = () => {
               <Link
                 key={link.to}
                 to={link.to}
-                className={`relative font-semibold transition-colors duration-300 ${
-                  isActive(link.to)
-                    ? 'text-primary-600 dark:text-primary-400'
-                    : 'text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400'
-                }`}
+                className={`nav-link ${isActive(link.to) ? 'nav-link-active' : ''}`}
               >
                 {link.label}
                 {isActive(link.to) && (
                   <motion.div
-                    layoutId="navbar-indicator"
-                    className="absolute -bottom-1 left-0 right-0 h-1 bg-gradient-to-r from-primary-600 to-accent-600 rounded-full"
+                    layoutId="active-nav"
+                    className="absolute -bottom-1 left-0 w-full h-0.5 bg-indigo-600 dark:bg-indigo-400 rounded-full"
+                    transition={{ type: "spring", stiffness: 380, damping: 30 }}
                   />
                 )}
               </Link>
             ))}
           </div>
 
-          {/* Right Section */}
-          <div className="flex items-center gap-4">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors duration-300 group"
-              aria-label={t('toggleTheme')}
-            >
-              {theme === 'light' ? (
-                <Moon className="w-6 h-6 text-primary-600 dark:text-accent-400 group-hover:rotate-12 transition-transform duration-300" />
-              ) : (
-                <Sun className="w-6 h-6 text-accent-400 group-hover:rotate-90 transition-transform duration-300" />
-              )}
-            </button>
+          {/* Right Section / Controls */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-800">
+              <button
+                onClick={toggleTheme}
+                className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm"
+                aria-label={t('toggleTheme')}
+              >
+                {theme === 'light' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+              </button>
 
-            {/* Language Toggle */}
-            <button
-              onClick={toggleLanguage}
-              className="p-2 rounded-lg hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors duration-300 group"
-              aria-label={t('toggleLanguage')}
-            >
-              <Globe className="w-6 h-6 text-primary-600 dark:text-accent-400 group-hover:rotate-180 transition-transform duration-500" />
-            </button>
+              <button
+                onClick={toggleLanguage}
+                className="p-2 rounded-xl hover:bg-white dark:hover:bg-slate-800 transition-all duration-300 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 shadow-sm"
+                aria-label={t('toggleLanguage')}
+              >
+                <Globe className="w-5 h-5" />
+              </button>
+            </div>
 
-            {/* Auth Section */}
+            <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2 hidden md:block" />
+
+            {/* Auth Buttons */}
             {isAuthenticated ? (
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-primary-600 to-accent-600 text-white hover:shadow-lg transition-all duration-300"
+                  className="flex items-center gap-3 pl-2 pr-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md transition-all group"
                 >
-                  <User className="w-5 h-5" />
-                  <span className="hidden md:inline">{user?.firstName}</span>
+                  <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                    <User className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <span className="font-bold text-slate-700 dark:text-slate-200 text-xs hidden sm:block">
+                    {user?.firstName}
+                  </span>
                 </button>
 
                 <AnimatePresence>
                   {showUserMenu && (
                     <motion.div
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-xl shadow-xl py-2 border border-gray-100 dark:border-gray-700"
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-3 w-56 glass-effect !bg-white/90 dark:!bg-slate-900/90 rounded-[1.5rem] shadow-2xl py-3 border border-slate-200/50 dark:border-slate-800/50"
                     >
+                      <div className="px-5 py-3 mb-2 border-b border-slate-100 dark:border-slate-800">
+                         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">Logged in as</div>
+                         <div className="text-sm font-black text-slate-900 dark:text-white truncate">{user?.email}</div>
+                      </div>
                       <Link
                         to="/dashboard"
-                        className="block px-4 py-2 hover:bg-primary-50 dark:hover:bg-gray-700 transition-colors dark:text-white"
+                        className="flex items-center gap-3 px-5 py-2.5 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-700 dark:text-slate-200 font-bold transition-colors"
                         onClick={() => setShowUserMenu(false)}
                       >
-                        {t('nav.dashboard')}
+                        <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
+                        <span className="text-xs">{t('nav.dashboard')}</span>
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors flex items-center gap-2"
+                        className="w-full flex items-center gap-3 px-5 py-2.5 hover:bg-red-50 dark:hover:bg-red-900/10 text-red-600 dark:text-red-400 font-bold transition-colors"
                       >
-                        <LogOut className="w-4 h-4" />
-                        {t('nav.logout')}
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span className="text-xs">{t('nav.logout')}</span>
                       </button>
                     </motion.div>
                   )}
@@ -144,68 +155,55 @@ const Navbar = () => {
               </div>
             ) : (
               <div className="hidden md:flex items-center gap-3">
-                <Link to="/login" className="btn-outline px-4 py-2 text-sm">
+                <Link to="/login" className="px-5 py-2 rounded-xl font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 transition-colors text-sm">
                   {t('nav.login')}
                 </Link>
-                <Link to="/signup" className="btn-primary px-4 py-2 text-sm">
+                <Link to="/signup" className="btn-primary !rounded-xl px-5 py-2 !text-sm shadow-none hover:shadow-indigo-500/20">
                   {t('nav.signup')}
                 </Link>
               </div>
             )}
 
-            {/* Mobile Menu Button */}
+            {/* Mobile Menu Trigger */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="lg:hidden p-2 rounded-lg hover:bg-primary-50 transition-colors"
-              aria-label={t('toggleMenu')}
+              className="lg:hidden p-3 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white hover:bg-indigo-100 transition-colors"
             >
-              {isOpen ? (
-                <X className="w-6 h-6 text-primary-600" />
-              ) : (
-                <Menu className="w-6 h-6 text-primary-600" />
-              )}
+              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Sidebar/Menu */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="lg:hidden overflow-hidden"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              className="lg:hidden fixed inset-x-4 top-24 z-50 glass-effect !bg-white/95 dark:!bg-slate-950/95 rounded-[2.5rem] p-8 shadow-2xl border border-white/20"
             >
-              <div className="py-4 space-y-2">
+              <div className="flex flex-col gap-4">
                 {navLinks.map((link) => (
                   <Link
                     key={link.to}
                     to={link.to}
                     onClick={() => setIsOpen(false)}
-                    className={`block px-4 py-3 rounded-lg font-semibold transition-all duration-300 ${
+                    className={`text-xl font-black px-4 py-3 rounded-2xl transition-all ${
                       isActive(link.to)
-                        ? 'bg-gradient-to-r from-primary-600 to-accent-600 text-white'
-                        : 'text-gray-700 dark:text-gray-200 hover:bg-primary-50 dark:hover:bg-gray-700'
+                        ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/20'
+                        : 'text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/10'
                     }`}
                   >
                     {link.label}
                   </Link>
                 ))}
                 {!isAuthenticated && (
-                  <div className="flex flex-col gap-2 px-4 pt-4 border-t border-gray-200 mt-4">
-                    <Link
-                      to="/login"
-                      onClick={() => setIsOpen(false)}
-                      className="btn-outline w-full py-3"
-                    >
+                  <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <Link to="/login" onClick={() => setIsOpen(false)} className="btn-secondary !py-4">
                       {t('nav.login')}
                     </Link>
-                    <Link
-                      to="/signup"
-                      onClick={() => setIsOpen(false)}
-                      className="btn-primary w-full py-3"
-                    >
+                    <Link to="/signup" onClick={() => setIsOpen(false)} className="btn-primary !py-4 shadow-none">
                       {t('nav.signup')}
                     </Link>
                   </div>

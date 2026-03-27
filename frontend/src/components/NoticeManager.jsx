@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../store/authStore'
-import api from '../utils/api'
+import { supabase } from '../lib/supabase'
+import { Settings, Trash2, Plus, Search, Filter, X, ChevronRight, Calendar, User } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const NoticeManager = () => {
   const { t } = useTranslation()
-  const { user, token } = useAuth()
+  const { user } = useAuth()
   const [notices, setNotices] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -48,31 +50,20 @@ const NoticeManager = () => {
   const fetchNotices = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams()
-      if (filters.category) params.append('category', filters.category)
-      if (filters.priority) params.append('priority', filters.priority)
+      let query = supabase.from('notices').select('*')
       
-      const response = await api.get(`/notices?${params}`)
-      
-      if (response.status === 200) {
-        const data = response.data
-        let filteredNotices = data.notices || []
-        
-        console.log('📄 Retrieved notices:', filteredNotices.length)
-        console.log('📝 First notice sample:', filteredNotices[0])
-        
-        if (filters.search) {
-          filteredNotices = filteredNotices.filter(notice => 
-            notice.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-            notice.content.toLowerCase().includes(filters.search.toLowerCase())
-          )
-        }
-        
-        setNotices(filteredNotices)
-      } else {
-        setError(t('common.errorFetchingNotices'))
+      if (filters.category) query = query.eq('category', filters.category)
+      if (filters.priority) query = query.eq('priority', filters.priority)
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,content.ilike.%${filters.search}%`)
       }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false })
+      
+      if (fetchError) throw fetchError
+      setNotices(data || [])
     } catch (err) {
+      console.error('Fetch notices error:', err.message)
       setError(t('common.networkError'))
     } finally {
       setLoading(false)
@@ -84,53 +75,36 @@ const NoticeManager = () => {
 
     try {
       setLoading(true)
-      console.log('📃 Creating notice with form data:', noticeForm)
       
-      // Prepare the data, making tags and expiry_date truly optional
       const submitData = {
         title: noticeForm.title,
         content: noticeForm.content,
         category: noticeForm.category,
         priority: noticeForm.priority,
-        tags: noticeForm.tags.trim() || undefined,
-        expiry_date: noticeForm.expiry_date.trim() || undefined
+        tags: noticeForm.tags ? noticeForm.tags.split(',').map(tag => tag.trim()) : [],
+        expiry_date: noticeForm.expiry_date || null,
+        author_id: user.id,
+        author_name: `${user.firstName} ${user.lastName}`
       }
       
-      // Remove undefined fields
-      Object.keys(submitData).forEach(key => {
-        if (submitData[key] === undefined) {
-          delete submitData[key]
-        }
-      })
-      
-      console.log('📤 Submitting processed data:', submitData)
-      
-      const response = await api.post('/notices', submitData)
+      const { error: insertError } = await supabase.from('notices').insert([submitData])
 
-      if (response.status === 201) {
-        console.log('✅ Notice created successfully:', response.data)
-        setSuccess(t('common.noticeCreatedSuccessfully'))
-        setNoticeForm({
-          title: '',
-          content: '',
-          category: 'announcement',
-          priority: 'medium',
-          tags: '',
-          expiry_date: ''
-        })
-        setShowCreateForm(false)
-        fetchNotices()
-      } else {
-        console.error('❌ Notice creation failed:', response.data)
-        setError(response.data?.message || t('common.createFailed'))
-      }
+      if (insertError) throw insertError
+
+      setSuccess(t('common.noticeCreatedSuccessfully'))
+      setNoticeForm({
+        title: '',
+        content: '',
+        category: 'announcement',
+        priority: 'medium',
+        tags: '',
+        expiry_date: ''
+      })
+      setShowCreateForm(false)
+      fetchNotices()
     } catch (err) {
-      console.error('❌ Create notice error:', err)
-      if (err.response?.data?.message) {
-        setError(err.response.data.message)
-      } else {
-        setError(t('common.networkError'))
-      }
+      console.error('Create notice error:', err.message)
+      setError(err.message || t('common.createFailed'))
     } finally {
       setLoading(false)
     }
@@ -138,22 +112,23 @@ const NoticeManager = () => {
 
   const handleEdit = async (noticeId, updates) => {
     try {
-      const response = await api.put(`/notices/${noticeId}`, updates)
+      if (updates.tags && typeof updates.tags === 'string') {
+        updates.tags = updates.tags.split(',').map(tag => tag.trim())
+      }
 
-      if (response.status === 200) {
-        setSuccess(t('common.noticeUpdatedSuccessfully'))
-        setEditingNotice(null)
-        fetchNotices()
-      } else {
-        setError(response.data?.message || t('common.updateFailed'))
-      }
+      const { error: updateError } = await supabase
+        .from('notices')
+        .update(updates)
+        .eq('id', noticeId)
+
+      if (updateError) throw updateError
+
+      setSuccess(t('common.noticeUpdatedSuccessfully'))
+      setEditingNotice(null)
+      fetchNotices()
     } catch (err) {
-      console.error('Update notice error:', err)
-      if (err.response?.data?.message) {
-        setError(err.response.data.message)
-      } else {
-        setError(t('common.networkError'))
-      }
+      console.error('Update notice error:', err.message)
+      setError(err.message || t('common.updateFailed'))
     }
   }
 
@@ -161,21 +136,18 @@ const NoticeManager = () => {
     if (!confirm(t('common.confirmDeleteNotice'))) return
 
     try {
-      const response = await api.delete(`/notices/${noticeId}`)
+      const { error: deleteError } = await supabase
+        .from('notices')
+        .delete()
+        .eq('id', noticeId)
 
-      if (response.status === 200) {
-        setSuccess(t('common.noticeDeletedSuccessfully'))
-        fetchNotices()
-      } else {
-        setError(response.data?.message || t('common.deleteFailed'))
-      }
+      if (deleteError) throw deleteError
+
+      setSuccess(t('common.noticeDeletedSuccessfully'))
+      fetchNotices()
     } catch (err) {
-      console.error('Delete notice error:', err)
-      if (err.response?.data?.message) {
-        setError(err.response.data.message)
-      } else {
-        setError(t('common.networkError'))
-      }
+      console.error('Delete notice error:', err.message)
+      setError(err.message || t('common.deleteFailed'))
     }
   }
 
@@ -208,14 +180,19 @@ const NoticeManager = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container-custom py-12">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">{t('common.noticeBoard')}</h1>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
+          <h1 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white tracking-tight leading-none mb-4">
+            {t('notice.title')}
+          </h1>
+          <p className="text-base text-slate-500 dark:text-slate-400 font-medium max-w-2xl mx-auto leading-relaxed">
+            {t('notice.subtitle')}
+          </p>
           {user.role === 'teacher' && (
             <button
               onClick={() => setShowCreateForm(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn-primary"
             >
               {t('common.createNotice')}
             </button>
@@ -223,27 +200,29 @@ const NoticeManager = () => {
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
+             <div className="w-1.5 h-1.5 rounded-full bg-red-600" />
             {error}
           </div>
         )}
 
         {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 px-6 py-4 rounded-2xl mb-8 flex items-center gap-3">
+             <div className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
             {success}
           </div>
         )}
 
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="glass-effect p-6 rounded-3xl mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">
                 {t('common.category')}
               </label>
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({...filters, category: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="input-field"
               >
                 <option value="">{t('common.allCategories')}</option>
                 {categories.map(cat => (
@@ -251,14 +230,14 @@ const NoticeManager = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">
                 {t('common.priority')}
               </label>
               <select
                 value={filters.priority}
                 onChange={(e) => setFilters({...filters, priority: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="input-field"
               >
                 <option value="">{t('common.allPriorities')}</option>
                 {priorities.map(pri => (
@@ -266,8 +245,8 @@ const NoticeManager = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 dark:text-slate-300 ml-1">
                 {t('common.search')}
               </label>
               <input
@@ -275,13 +254,13 @@ const NoticeManager = () => {
                 value={filters.search}
                 onChange={(e) => setFilters({...filters, search: e.target.value})}
                 placeholder={t('common.searchNotices')}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="input-field"
               />
             </div>
             <div className="flex items-end">
               <button
                 onClick={() => setFilters({ category: '', priority: '', search: '' })}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
+                className="btn-secondary w-full"
               >
                 {t('common.clearFilters')}
               </button>
@@ -409,27 +388,36 @@ const NoticeManager = () => {
             </div>
           ) : (
             notices.map((notice) => (
-              <div key={notice.id} className={`bg-white rounded-lg shadow-md p-6 ${isExpired(notice.expiry_date) ? 'opacity-60' : ''}`}>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-xl font-bold text-gray-800">{notice.title}</h3>
+              <motion.div 
+                key={notice.id} 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`card !p-8 ${isExpired(notice.expiry_date) ? 'opacity-60 grayscale-[0.5]' : ''}`}
+              >
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white leading-none">{notice.title}</h3>
                       {isExpired(notice.expiry_date) && (
-                        <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
+                        <span className="text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded-md border border-red-200/50 dark:border-red-800/50">
                           {t('common.expired')}
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-wrap items-center gap-2 mb-3">
-                      <span className={`text-xs px-2 py-1 rounded ${getPriorityColor(notice.priority)}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full border ${
+                        notice.priority === 'urgent' ? 'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800' :
+                        notice.priority === 'high' ? 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800' :
+                        'bg-blue-50 text-indigo-600 border-indigo-100 dark:bg-indigo-900/20 dark:text-indigo-400 dark:border-indigo-800'
+                      }`}>
                         {priorities.find(p => p.value === notice.priority)?.label}
                       </span>
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      <span className="text-[11px] font-bold uppercase tracking-wider bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 px-3 py-1 rounded-full border border-slate-200/50 dark:border-slate-700">
                         {categories.find(c => c.value === notice.category)?.label}
                       </span>
                       {notice.tags && notice.tags.length > 0 && notice.tags.map((tag, index) => (
-                        <span key={index} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                          {tag}
+                        <span key={index} className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                          #{tag}
                         </span>
                       ))}
                     </div>
@@ -438,40 +426,48 @@ const NoticeManager = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => setEditingNotice(notice)}
-                        className="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
+                        className="p-2 rounded-xl bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 transition-colors"
                       >
-                        {t('common.edit')}
+                        <Settings className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(notice.id)}
-                        className="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                        className="p-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 border border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 transition-colors"
                       >
-                        {t('common.delete')}
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   )}
                 </div>
 
-                <div className="prose max-w-none mb-4">
-                  <p className="text-gray-700 whitespace-pre-wrap">{notice.content}</p>
+                <div className="prose dark:prose-invert max-w-none mb-8">
+                  <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap leading-relaxed text-sm">{notice.content}</p>
                 </div>
 
-                <div className="text-sm text-gray-500 border-t pt-3">
-                  <div className="flex flex-wrap justify-between items-center gap-2">
-                    <div>
-                      <span className="font-medium">{t('common.author')}:</span> {notice.author_name}
+                <div className="flex flex-wrap justify-between items-center gap-4 pt-6 mt-auto border-t border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-black text-indigo-600">
+                      {notice.author_name?.[0]}
                     </div>
                     <div>
-                      <span className="font-medium">{t('common.published')}:</span> {formatDate(notice.created_at)}
+                      <div className="text-sm font-bold text-slate-900 dark:text-white leading-none mb-1">{notice.author_name}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('common.author')}</div>
+                    </div>
+                  </div>
+                  <div className="flex gap-8">
+                    <div>
+                      <div className="text-sm font-bold text-slate-700 dark:text-slate-300 leading-none mb-1">{formatDate(notice.created_at)}</div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('common.published')}</div>
                     </div>
                     {notice.expiry_date && (
                       <div>
-                        <span className="font-medium">{t('common.expires')}:</span> {formatDate(notice.expiry_date)}
+                        <div className="text-sm font-bold text-slate-700 dark:text-slate-300 leading-none mb-1">{formatDate(notice.expiry_date)}</div>
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{t('common.expires')}</div>
                       </div>
                     )}
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))
           )}
         </div>

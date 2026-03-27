@@ -21,10 +21,10 @@ const About = () => {
           className="text-center mb-16"
         >
           <h1 className="section-title">{t('about.title')}</h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 font-semibold mb-6">
+          <p className="text-base text-gray-600 dark:text-gray-400 font-semibold mb-4">
             {t('about.subtitle')}
           </p>
-          <p className="text-base text-gray-600 dark:text-gray-400 max-w-4xl mx-auto leading-relaxed">
+          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-4xl mx-auto leading-relaxed">
             {t('about.description')}
           </p>
         </motion.div>
@@ -44,8 +44,8 @@ const About = () => {
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end">
               <div className="p-8 text-white">
-                <h3 className="text-3xl font-bold mb-2">{t('home.schoolName')}</h3>
-                <p className="text-lg opacity-90">{t('home.tagline')}</p>
+                <h3 className="text-2xl font-bold mb-1">{t('home.schoolName')}</h3>
+                <p className="text-base opacity-90">{t('home.tagline')}</p>
               </div>
             </div>
           </div>
@@ -66,10 +66,10 @@ const About = () => {
                 <div className="bg-gradient-to-br from-primary-500 to-accent-500 p-6 rounded-2xl mb-6 group-hover:scale-110 transition-transform duration-300">
                   <value.icon className="w-10 h-10 text-white" />
                 </div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
                   {value.title}
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-sm">
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed text-xs">
                   {value.description}
                 </p>
               </div>
@@ -84,15 +84,15 @@ const About = () => {
           viewport={{ once: true }}
           className="card bg-gradient-to-br from-primary-50 to-accent-50 dark:from-primary-900/20 dark:to-accent-900/20"
         >
-          <div className="flex items-center gap-6 mb-6">
-            <div className="bg-gradient-to-br from-primary-500 to-accent-500 p-4 rounded-xl">
-              <Award className="w-8 h-8 text-white" />
+          <div className="flex items-center gap-4 mb-4">
+            <div className="bg-gradient-to-br from-primary-500 to-accent-500 p-3 rounded-xl">
+              <Award className="w-6 h-6 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">
               {t('about.ourLegacy')}
             </h2>
           </div>
-          <p className="text-base text-gray-700 dark:text-gray-300 leading-relaxed">
+          <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
             {t('about.legacyText')}
           </p>
         </motion.div>

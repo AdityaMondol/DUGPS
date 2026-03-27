@@ -16,7 +16,7 @@ const Footer = () => {
               <div className="bg-white/10 p-2 rounded-xl">
                 <GraduationCap className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-bold">{t('home.schoolName').substring(0, 15)}...</h3>
+              <h3 className="text-lg font-bold">{t('home.schoolName').substring(0, 15)}...</h3>
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">
               {t('home.description').substring(0, 120)}...
@@ -25,7 +25,7 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h4 className="text-lg font-bold mb-4 border-b-2 border-accent-500 pb-2 inline-block">
+            <h4 className="text-base font-black mb-4 border-b-2 border-accent-500 pb-2 inline-block uppercase tracking-wider">
               Quick Links
             </h4>
             <ul className="space-y-2">
@@ -45,7 +45,7 @@ const Footer = () => {
 
           {/* Contact Info */}
           <div>
-            <h4 className="text-lg font-bold mb-4 border-b-2 border-accent-500 pb-2 inline-block">
+            <h4 className="text-base font-black mb-4 border-b-2 border-accent-500 pb-2 inline-block uppercase tracking-wider">
               {t('contact.title')}
             </h4>
             <ul className="space-y-3">
@@ -73,7 +73,7 @@ const Footer = () => {
 
           {/* Social Media */}
           <div>
-            <h4 className="text-lg font-bold mb-4 border-b-2 border-accent-500 pb-2 inline-block">
+            <h4 className="text-base font-black mb-4 border-b-2 border-accent-500 pb-2 inline-block uppercase tracking-wider">
               Follow Us
             </h4>
             <p className="text-gray-300 text-sm mb-4">

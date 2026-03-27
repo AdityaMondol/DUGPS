@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../store/authStore'
-import api from '../utils/api'
+import { supabase } from '../lib/supabase'
+import { File, Image, Video, Music, FileText } from 'lucide-react'
 
 const MediaManager = () => {
   const { t } = useTranslation()
-  const { user, token } = useAuth()
+  const { user } = useAuth()
   const [media, setMedia] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,28 +40,19 @@ const MediaManager = () => {
   const fetchMedia = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams()
-      if (filters.category) params.append('category', filters.category)
+      let query = supabase.from('media').select('*')
       
-      const response = await api.get(`/media?${params}`)
-      
-      if (response.status === 200) {
-        const data = response.data
-        let filteredMedia = data.media || []
-        
-        if (filters.search) {
-          filteredMedia = filteredMedia.filter(item => 
-            item.title.toLowerCase().includes(filters.search.toLowerCase()) ||
-            item.description.toLowerCase().includes(filters.search.toLowerCase())
-          )
-        }
-        
-        setMedia(filteredMedia)
-      } else {
-        setError(t('common.errorFetchingMedia'))
+      if (filters.category) query = query.eq('category', filters.category)
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
       }
+      
+      const { data, error: fetchError } = await query.order('created_at', { ascending: false })
+      
+      if (fetchError) throw fetchError
+      setMedia(data || [])
     } catch (err) {
-      console.error('Get media error:', err)
+      console.error('Fetch media error:', err.message)
       setError(t('common.networkError'))
     } finally {
       setLoading(false)
@@ -75,42 +67,53 @@ const MediaManager = () => {
       return
     }
 
-    const formData = new FormData()
-    formData.append('file', uploadForm.file)
-    formData.append('title', uploadForm.title)
-    formData.append('description', uploadForm.description)
-    formData.append('category', uploadForm.category)
-    formData.append('tags', uploadForm.tags)
-
     try {
       setLoading(true)
-      const response = await api.post('/media', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
+      
+      // 1. Upload to Supabase Storage
+      const fileName = `${Date.now()}_${uploadForm.file.name.replace(/\s/g, '_')}`
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('media')
+        .upload(fileName, uploadForm.file)
 
-      if (response.status === 201) {
-        setSuccess(t('common.mediaUploadedSuccessfully'))
-        setUploadForm({
-          title: '',
-          description: '',
-          category: 'image',
-          tags: '',
-          file: null
-        })
-        setShowUploadForm(false)
-        fetchMedia()
-      } else {
-        setError(response.data?.message || t('common.uploadFailed'))
+      if (storageError) throw storageError
+
+      // 2. Get Public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('media')
+        .getPublicUrl(fileName)
+
+      // 3. Save metadata to Database
+      const submitData = {
+        title: uploadForm.title,
+        description: uploadForm.description,
+        category: uploadForm.category,
+        tags: uploadForm.tags ? uploadForm.tags.split(',').map(tag => tag.trim()) : [],
+        file_path: fileName,
+        file_url: publicUrl,
+        file_size: uploadForm.file.size,
+        mime_type: uploadForm.file.type,
+        author_id: user.id,
+        author_name: `${user.firstName} ${user.lastName}`
       }
+
+      const { error: insertError } = await supabase.from('media').insert([submitData])
+
+      if (insertError) throw insertError
+
+      setSuccess(t('common.mediaUploadedSuccessfully'))
+      setUploadForm({
+        title: '',
+        description: '',
+        category: 'image',
+        tags: '',
+        file: null
+      })
+      setShowUploadForm(false)
+      fetchMedia()
     } catch (err) {
-      console.error('Media upload error:', err)
-      if (err.response?.data?.message) {
-        setError(err.response.data.message)
-      } else {
-        setError(t('common.networkError'))
-      }
+      console.error('Media upload error:', err.message)
+      setError(err.message || t('common.uploadFailed'))
     } finally {
       setLoading(false)
     }
@@ -118,52 +121,58 @@ const MediaManager = () => {
 
   const handleEdit = async (mediaId, updates) => {
     try {
-      const response = await api.put(`/media/${mediaId}`, updates)
+      if (updates.tags && typeof updates.tags === 'string') {
+        updates.tags = updates.tags.split(',').map(tag => tag.trim())
+      }
 
-      if (response.status === 200) {
-        setSuccess(t('common.mediaUpdatedSuccessfully'))
-        setEditingMedia(null)
-        fetchMedia()
-      } else {
-        setError(response.data?.message || t('common.updateFailed'))
-      }
+      const { error: updateError } = await supabase
+        .from('media')
+        .update(updates)
+        .eq('id', mediaId)
+
+      if (updateError) throw updateError
+
+      setSuccess(t('common.mediaUpdatedSuccessfully'))
+      setEditingMedia(null)
+      fetchMedia()
     } catch (err) {
-      console.error('Update media error:', err)
-      if (err.response?.data?.message) {
-        setError(err.response.data.message)
-      } else {
-        setError(t('common.networkError'))
-      }
+      console.error('Update media error:', err.message)
+      setError(err.message || t('common.updateFailed'))
     }
   }
 
-  const handleDelete = async (mediaId) => {
+  const handleDelete = async (item) => {
     if (!confirm(t('common.confirmDeleteMedia'))) return
 
     try {
-      const response = await api.delete(`/media/${mediaId}`)
+      // 1. Delete from Storage
+      const { error: storageError } = await supabase.storage
+        .from('media')
+        .remove([item.file_path])
 
-      if (response.status === 200) {
-        setSuccess(t('common.mediaDeletedSuccessfully'))
-        fetchMedia()
-      } else {
-        setError(response.data?.message || t('common.deleteFailed'))
-      }
+      if (storageError) throw storageError
+
+      // 2. Delete from Database
+      const { error: deleteError } = await supabase
+        .from('media')
+        .delete()
+        .eq('id', item.id)
+
+      if (deleteError) throw deleteError
+
+      setSuccess(t('common.mediaDeletedSuccessfully'))
+      fetchMedia()
     } catch (err) {
-      console.error('Delete media error:', err)
-      if (err.response?.data?.message) {
-        setError(err.response.data.message)
-      } else {
-        setError(t('common.networkError'))
-      }
+      console.error('Delete media error:', err.message)
+      setError(err.message || t('common.deleteFailed'))
     }
   }
 
   const getFileIcon = (mimeType) => {
-    if (mimeType.startsWith('image/')) return '🖼️'
-    if (mimeType.startsWith('video/')) return '🎥'
-    if (mimeType.startsWith('audio/')) return '🎵'
-    return '📄'
+    if (mimeType.startsWith('image/')) return <Image className="w-8 h-8 text-blue-500" />
+    if (mimeType.startsWith('video/')) return <Video className="w-8 h-8 text-purple-500" />
+    if (mimeType.startsWith('audio/')) return <Music className="w-8 h-8 text-green-500" />
+    return <FileText className="w-8 h-8 text-gray-500" />
   }
 
   const formatFileSize = (bytes) => {
@@ -175,15 +184,21 @@ const MediaManager = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container-custom py-12">
       <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">{t('common.mediaManagement')}</h1>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12">
+          <div className="text-center md:text-left">
+            <h1 className="section-title !mb-2">{t('common.mediaManagement')}</h1>
+            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">{t('media.subtitle') || 'Explore our school gallery and resources'}</p>
+          </div>
           {user?.role === 'teacher' && (
             <button
               onClick={() => setShowUploadForm(true)}
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              className="btn-primary group"
             >
+              <div className="w-5 h-5 mr-1 group-hover:rotate-12 transition-transform">
+                <File className="w-5 h-5" />
+              </div>
               {t('common.uploadMedia')}
             </button>
           )}
@@ -201,16 +216,16 @@ const MediaManager = () => {
           </div>
         )}
 
-        <div className="bg-white p-4 rounded-lg shadow mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="card !p-4 mb-10 border-slate-200/40 dark:border-slate-800/40">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                 {t('common.category')}
               </label>
               <select
                 value={filters.category}
                 onChange={(e) => setFilters({...filters, category: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                className="input-field !py-2.5 text-sm"
               >
                 <option value="">{t('common.allCategories')}</option>
                 {categories.map(cat => (
@@ -218,22 +233,24 @@ const MediaManager = () => {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+            <div className="space-y-2">
+              <label className="block text-[11px] font-bold uppercase tracking-widest text-slate-400 ml-1">
                 {t('common.search')}
               </label>
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => setFilters({...filters, search: e.target.value})}
-                placeholder={t('common.searchMedia')}
-                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => setFilters({...filters, search: e.target.value})}
+                  placeholder={t('common.searchMedia')}
+                  className="input-field !py-2.5 !pl-4 text-sm"
+                />
+              </div>
             </div>
             <div className="flex items-end">
               <button
                 onClick={() => setFilters({ category: '', search: '' })}
-                className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
+                className="btn-secondary h-[42px] px-6 text-sm w-full md:w-auto"
               >
                 {t('common.clearFilters')}
               </button>
@@ -334,71 +351,95 @@ const MediaManager = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {loading ? (
-            <div className="col-span-full text-center py-8">
-              <div className="text-gray-500">{t('common.loading')}</div>
+            <div className="col-span-full text-center py-20 card border-dashed">
+              <div className="flex flex-col items-center gap-4">
+                <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                <div className="text-slate-500 dark:text-slate-400 font-medium text-sm">{t('common.loading')}</div>
+              </div>
             </div>
           ) : media.length === 0 ? (
-            <div className="col-span-full text-center py-8">
-              <div className="text-gray-500">{t('common.noMediaFound')}</div>
+            <div className="col-span-full text-center py-20 card border-dashed">
+              <div className="text-slate-500 dark:text-slate-400 font-medium">{t('common.noMediaFound')}</div>
             </div>
           ) : (
             media.map((item) => (
-              <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-2xl">{getFileIcon(item.mime_type)}</span>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-                      {item.category}
+              <div key={item.id} className="card group flex flex-col hover:border-indigo-500/50 transition-all duration-500">
+                <div className="relative aspect-video rounded-xl overflow-hidden mb-6 bg-slate-100 dark:bg-slate-800">
+                  {item.category === 'image' ? (
+                    <img 
+                      src={item.file_url} 
+                      alt={item.title} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center opacity-40">
+                      {getFileIcon(item.mime_type)}
+                    </div>
+                  )}
+                  <div className="absolute top-4 left-4">
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-white/90 dark:bg-slate-900/90 text-indigo-600 dark:text-indigo-400 px-3 py-1.5 rounded-lg shadow-sm backdrop-blur-md">
+                      {t(`common.${item.category}`)}
                     </span>
                   </div>
+                </div>
+
+                <div className="flex-1 flex flex-col">
+                  <h3 className="font-bold text-base text-slate-900 dark:text-white mb-2 line-clamp-1 group-hover:text-indigo-600 transition-colors">
+                    {item.title}
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-xs mb-4 line-clamp-2 leading-relaxed">
+                    {item.description}
+                  </p>
                   
-                  <h3 className="font-bold text-lg mb-2 line-clamp-2">{item.title}</h3>
-                  <p className="text-gray-600 text-sm mb-3 line-clamp-3">{item.description}</p>
-                  
-                  <div className="flex flex-wrap gap-1 mb-3">
+                  <div className="flex flex-wrap gap-1.5 mb-6">
                     {item.tags && item.tags.map((tag, index) => (
-                      <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                      <span key={index} className="text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md">
                         {tag}
                       </span>
                     ))}
                   </div>
                   
-                  <div className="text-xs text-gray-500 mb-3">
-                    <div>{t('common.size')}: {formatFileSize(item.file_size)}</div>
-                    <div>{t('common.uploaded')}: {new Date(item.created_at).toLocaleDateString()}</div>
-                    <div>{t('common.author')}: {item.author_name}</div>
+                  <div className="grid grid-cols-2 gap-4 pt-4 mt-auto border-t border-slate-100 dark:border-slate-800 mb-6">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-900 dark:text-white truncate">{item.author_name}</div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t('common.author')}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{new Date(item.created_at).toLocaleDateString()}</div>
+                      <div className="text-[9px] font-bold uppercase tracking-widest text-slate-400">{t('common.uploaded')}</div>
+                    </div>
                   </div>
                   
-                  {user && item.author_id === user.id && (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setEditingMedia(item)}
-                        className="flex-1 bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600"
-                      >
-                        {t('common.edit')}
-                      </button>
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="flex-1 bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                      >
-                        {t('common.delete')}
-                      </button>
-                    </div>
-                  )}
-                  
-                  <div className="mt-3">
+                  <div className="flex flex-col gap-2">
                     <a
-                      href={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/uploads/media/${item.file_name}`}
+                      href={item.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="w-full bg-green-500 text-white px-3 py-2 rounded text-sm hover:bg-green-600 transition-colors inline-block text-center"
+                      className="btn-primary !h-10 !text-xs w-full"
                     >
                       {item.mime_type.startsWith('image/') ? t('common.viewImage') : 
                        item.mime_type.startsWith('video/') ? t('common.viewVideo') : 
                        item.mime_type.startsWith('audio/') ? t('common.playAudio') : t('common.downloadFile')}
                     </a>
+                    
+                    {user && item.author_id === user.id && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setEditingMedia(item)}
+                          className="btn-secondary !h-10 !text-xs flex-1 !p-0"
+                        >
+                          {t('common.edit')}
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item)}
+                          className="btn-secondary !h-10 !text-xs !bg-red-50 !text-red-600 !border-red-100 flex-1 hover:!bg-red-100 transition-colors !p-0"
+                        >
+                          {t('common.delete')}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
