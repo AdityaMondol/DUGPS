@@ -8,19 +8,17 @@ const Teachers = () => {
   const headTeacher = {
     name: t('teachers.teacher1'),
     designation: t('teachers.headTeacher'),
-    qualification: 'M.A, B.Ed',
-    phone: '+880-1712-345678',
     image: '/assets/images/teacher1.jpg',
   }
 
   const assistantTeachers = [
-    { name: t('teachers.teacher2'), qualification: 'B.A, B.Ed', image: '/assets/images/Teacher2.jpg' },
-    { name: t('teachers.teacher3'), qualification: 'B.A, B.Ed', image: '/assets/images/teacher3.jpg' },
-    { name: t('teachers.teacher4'), qualification: 'B.A, B.Ed', image: '/assets/images/All.jpg' },
-    { name: t('teachers.teacher5'), qualification: 'B.A, B.Ed', image: '/assets/images/shilpi.jpg' },
-    { name: t('teachers.teacher6'), qualification: 'B.A, B.Ed', image: '/assets/images/and.jpg' },
-    { name: t('teachers.teacher7'), qualification: 'B.A, B.Ed', image: '/assets/images/two.jpg' },
-    { name: t('teachers.teacher8'), qualification: 'B.A, B.Ed', image: '/assets/images/Misury.jpg' },
+    { name: t('teachers.teacher2'), image: '/assets/images/Teacher2.jpg' },
+    { name: t('teachers.teacher3'), image: '/assets/images/teacher3.jpg' },
+    { name: t('teachers.teacher4'), image: '/assets/images/All.jpg' },
+    { name: t('teachers.teacher5'), image: '/assets/images/shilpi.jpg' },
+    { name: t('teachers.teacher6'), image: '/assets/images/and.jpg' },
+    { name: t('teachers.teacher7'), image: '/assets/images/two.jpg' },
+    { name: t('teachers.teacher8'), image: '/assets/images/Misury.jpg' },
   ]
 
   return (
@@ -71,10 +69,6 @@ const Teachers = () => {
                   <p className="text-base text-primary-600 dark:text-accent-400 font-semibold mb-2">
                     {headTeacher.designation}
                   </p>
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <Award className="w-5 h-5" />
-                    <span>{headTeacher.qualification}</span>
-                  </div>
                 </div>
                 
                 <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -125,10 +119,6 @@ const Teachers = () => {
                   <p className="text-xs text-accent-600 dark:text-accent-400 font-semibold">
                     {t('teachers.assistantTeacher')}
                   </p>
-                  <div className="flex items-center justify-center gap-1.5 text-gray-600 dark:text-gray-400 text-xs">
-                    <Award className="w-3.5 h-3.5" />
-                    <span>{teacher.qualification}</span>
-                  </div>
                 </div>
               </motion.div>
             ))}
