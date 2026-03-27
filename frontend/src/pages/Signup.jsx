@@ -53,20 +53,7 @@ const Signup = () => {
 
       if (authError) throw authError
 
-      // 2. Create profile in the profiles table
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert([
-          {
-            id: authData.user.id,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            role: formData.role,
-            email: formData.email
-          }
-        ])
-
-      if (profileError) throw profileError
+      if (authError) throw authError
 
       toast.success('Account created successfully! Redirecting...')
       setTimeout(() => {
