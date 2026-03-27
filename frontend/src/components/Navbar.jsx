@@ -60,7 +60,7 @@ const Navbar = () => {
                 Darul Ulum
               </span>
               <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400 mt-1">
-                Modern Education
+                Government Primary School
               </span>
             </div>
           </Link>
