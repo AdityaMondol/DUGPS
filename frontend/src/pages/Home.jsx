@@ -17,9 +17,9 @@ const Home = () => {
   const y = useTransform(scrollYProgress, [0, 0.5], [0, -50])
 
   const stats = [
-    { icon: Users, value: '500+', label: t('home.students'), color: 'from-blue-500 to-indigo-600' },
+    { icon: Users, value: '100+', label: t('home.students'), color: 'from-blue-500 to-indigo-600' },
     { icon: GraduationCap, value: '7+', label: t('home.teachers'), color: 'from-indigo-600 to-purple-600' },
-    { icon: BookOpen, value: '50+', label: t('home.yearsExperience'), color: 'from-purple-600 to-pink-600' },
+    { icon: BookOpen, value: '90+', label: t('home.yearsExperience'), color: 'from-purple-600 to-pink-600' },
     { icon: Award, value: '100+', label: t('home.achievements'), color: 'from-pink-600 to-rose-600' },
   ]
 
